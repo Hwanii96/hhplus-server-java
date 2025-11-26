@@ -1,0 +1,558 @@
+concertIdopenapi: 3.0.3
+info:
+  title: "Concert Reservation Service API"
+  version: "1.0.0"
+  description: "콘서트 예약 서비스의 로그인, 대기열 토큰 발급 및 조회, 좌석 예약, 포인트 조회 및 충전, 결제 API 스펙 초안"
+
+servers:
+  - url: "http://localhost:8080"
+    description: "localServer"
+
+tags:
+  - name: "Auth"
+    description: "사용자 인증 API"
+  - name: "Concerts"
+    description: "콘서트 / 좌석 조회 관련 API"
+  - name: "Queue"
+    description: "대기열 토큰 발급 및 조회 API"
+  - name: "Reservations"
+    description: "좌석 예약 API "
+  - name: "Points"
+    description: "포인트 조회 / 충전 API"
+  - name: "Payments"
+    description: "결제 API"
+
+paths:
+  /auth/login:
+    post:
+      tags: ["Auth"]
+      summary: "사용자 로그인"
+      description: "이메일 / 비밀번호로 로그인 수행 후 accessToken을 발급한다"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        '200':
+          description: "로그인 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        '401':
+          description: "이메일 또는 비밀번호 불일치"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /concerts/{concertId}/schedules:
+    get:
+      tags: ["Concerts"]
+      summary: "예약 가능한 콘서트 날짜 (스케줄) 조회"
+      description: "특정 콘서트의 예약 가능 날짜 (스케줄) 목록을 조회한다"
+      parameters:
+        - name: concertId
+          in: path
+          required: true
+          description: "콘서트 ID"
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: "예약 가능 스케줄 목록"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConcertScheduleResponse"
+        '400':
+          description: "concertId 형식 오류"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          description: "존재하지 않는 콘서트"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /concerts/{concertId}/schedules/{scheduleId}/seats:
+    get:
+      tags: ["Concerts"]
+      summary: "좌석 정보 (목록) 조회"
+      description: "특정 콘서트의 좌석 목록 및 상태를 조회한다"
+      parameters:
+        - name: concertId
+          in: path
+          required: true
+          description: "콘서트 ID"
+          schema:
+            type: integer
+            format: int64
+        - name: scheduleId
+          in: path
+          required: true
+          description: "콘서트 스케줄 ID"
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: "좌석 목록"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConcertSeatResponse"
+        '400':
+          description: "concertId / scheduleId 형식 오류"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          description: "존재하지 않는 콘서트 또는 스케줄 (예약)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /queue/tokens:
+    post:
+      tags: ["Queue"]
+      summary: "대기열 토큰 발급"
+      description: "특정 콘서트 예약 및 결제를 위한 대기열 토큰을 발급한다"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueueTokenCreateRequest"
+      responses:
+        '201':
+          description: "대기열 토큰 발급 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueTokenCreateResponse"
+        '400':
+          description: "scheduleId 형식 오류"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '409':
+          description: "이미 동일한 콘서트에 WAITING / ACTIVE 상태의 대기열 토큰이 존재하는 경우"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /queue/tokens/{queueToken}:
+    get:
+      tags: ["Queue"]
+      summary: "대기열 토큰 상태 조회"
+      description: "대기열 토큰의 상태 (WAITING, ACTIVE, EXPIRED, DONE) 를 조회한다"
+      parameters:
+        - name: queueToken
+          in: path
+          required: true
+          description: "대기열 토큰 문자열"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "대기열 토큰 상태 조회 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueTokenStatusResponse"
+        '404':
+          description: "존재하지 않는 대기열 토큰"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reservations:
+    post:
+      tags: ["Reservations"]
+      summary: "좌석 임시 배정 (예약)"
+      description: "ACTIVE 상태의 대기열 토큰을 가진 사용자인 경우 좌석의 임시 배정 자격을 부여 받을 수 있다"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReservationRequest"
+      responses:
+        '201':
+          description: "임시 배정 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateReservationResponse"
+        '400':
+          description: "요청 형식 오류 (scheduleId / seatId 형식 등)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '403':
+          description: "대기열 토큰이 없거나 ACTIVE 상태가 아님"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          description: "존재하지 않는 스케줄 / 좌석"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '409':
+          description: "이미 다른 사용자에 의해 임시 배정되었거나 예약 완료된 좌석"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /points/me:
+    get:
+      tags: ["Points"]
+      summary: "내 포인트 조회"
+      description: "로그인된 사용자의 현재 포인트 잔액을 조회한다"
+      responses:
+        '200':
+          description: "포인트 잔액 조회 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserCurrentPoints"
+        '401':
+          description: "인증 실패 (accessToken 없음 또는 만료)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /points/charge:
+    post:
+      tags: ["Points"]
+      summary: "포인트 충전"
+      description: "로그인된 사용자의 포인트를 충전한다"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointChargeRequest"
+      responses:
+        '200':
+          description: "포인트 충전 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PointChargeResponse"
+        '400':
+          description: "충전 금액 형식 오류 또는 0 이하"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '401':
+          description: "사용자 인증 실패 (accessToken이 없거나, 만료되었거나, 유효하지 않은 경우)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '422':
+          description: "정책 위반 (1회 / 1일 최대 충전 한도 초과 등)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payments:
+    post:
+      tags: ["Payments"]
+      summary: "결제"
+      description: "임시 배정 (예약) 된 좌석을 결제 후 좌석을 예약 완료 상태로 변경한다"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequest"
+      responses:
+        '200':
+          description: "결제 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        '400':
+          description: "요청 형식 오류"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '401':
+          description: "인증 실패"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '403':
+          description: "대기열 토큰이 없거나 ACTIVE 상태가 아님"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          description: "존재하지 않는 예약 (reservationId)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '409':
+          description: "대기열 토큰의 상태가 만료 (EXPIRED) 또는 결제하려는 좌석의 상태가 이미 예약 완료 (RESERVED) 인 경우 "
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        '422':
+          description: "포인트 부족"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      required: ["email", "password"]
+      properties:
+        email:
+          type: string
+          format: email
+          description: "사용자 이메일"
+        password:
+          type: string
+          description: "사용자 비밀번호"
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: "인증에 사용할 액세스 토큰 (예 : JWT)"
+        userId:
+          type: integer
+          format: int64
+          description: "사용자 ID"
+        userName:
+          type: string
+          description: "사용자 이름"
+        expiresAt:
+          type: string
+          format: date-time
+          description: "토큰 만료 시각"
+
+    ConcertScheduleResponse:
+      type: object
+      properties:
+        scheduleId:
+          type: integer
+          format: int64
+          description: "콘서트 스케줄 ID"
+        dateTime:
+          type: string
+          format: date-time
+          description: "예약 가능한 날짜/시간"
+        isReservable:
+          type: boolean
+          description: "예약 가능 여부"
+        remainingSeats:
+          type: integer
+          description: "잔여 좌석 수"
+
+    ConcertSeatResponse:
+      type: object
+      properties:
+        seatId:
+          type: integer
+          format: int64
+          description: "좌석 ID"
+        seatNumber:
+          type: string
+          description: "좌석 번호 (예, A-10)"
+        seatStatus:
+          type: string
+          description: "좌석 상태"
+          enum: ["AVAILABLE", "TEMPORARY", "RESERVED"]
+        seatPrice:
+          type: integer
+          description: "좌석 가격"
+
+    QueueTokenCreateRequest:
+      type: object
+      required: ["scheduleId"]
+      properties:
+        scheduleId:
+          type: integer
+          format: int64
+          description: "대기열을 신청할 콘서트 스케줄 (일정) ID"
+
+    QueueTokenCreateResponse:
+      type: object
+      properties:
+        queueToken:
+          type: string
+          description: "대기열 토큰"
+        queueStatus:
+          type: string
+          description: "대기열 토큰 상태"
+          enum: ["WAITING", "ACTIVE", "EXPIRED", "DONE"]
+        position:
+          type: integer
+          description: "현재 대기 순위"
+        waitingTime:
+          type: integer
+          description: "예상 대기 시간 (초 단위 등)"
+
+    QueueTokenStatusResponse:
+      type: object
+      properties:
+        queueToken:
+          type: string
+          description: "대기열 토큰"
+        queueStatus:
+          type: string
+          description: "대기열 토큰 상태"
+          enum: ["WAITING", "ACTIVE", "EXPIRED", "DONE"]
+        position:
+          type: integer
+          description: "현재 대기 순위"
+        waitingTime:
+          type: integer
+          description: "예상 대기 시간 (초 단위 등)"
+
+    CreateReservationRequest:
+      type: object
+      required: ["scheduleId", "seatId", "queueToken"]
+      properties:
+        scheduleId:
+          type: integer
+          format: int64
+          description: "예약된 콘서트 스케줄 ID"
+        seatId:
+          type: integer
+          format: int64
+          description: "좌석 ID"
+        queueToken:
+          type: string
+          description: "ACTIVE 상태의 대기열 토큰"
+
+    CreateReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          type: integer
+          format: int64
+          description: "좌석 임시 배정 (예약) ID"
+        seatStatus:
+          type: string
+          description: "좌석 상태"
+          enum: ["TEMPORARY", "RESERVED"]
+        reservationExpiresAt:
+          type: string
+          format: date-time
+          description: "임시 배정 만료 시각"
+
+    UserCurrentPoints:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+          description: "사용자 ID"
+        currentPoints:
+          type: integer
+          description: "현재 포인트 잔액"
+
+    PointChargeRequest:
+      type: object
+      required: ["amount"]
+      properties:
+        amount:
+          type: integer
+          description: "충전할 포인트 금액 (0보다 커야 함)"
+          
+    PointChargeResponse:
+      type: object
+      properties:
+        userCurrentPoints:
+          type: integer
+          format: int64
+          description: "현재 포인트 잔액"
+        chargePointHistoryId:
+          type: integer
+          format: int64
+          description: "포인트 충전 이력 ID"
+        chargePointHistoryName:
+          type: string
+          description: "포인트 충전 이력 이름"
+        chargePointHistoryDetail:
+          type: string
+          description: "포인트 충전 내역"
+
+    PaymentRequest:
+      type: object
+      required: ["reservationId", "queueToken"]
+      properties:
+        reservationId:
+          type: integer
+          format: int64
+          description: "임시 배정 ID"
+        queueToken:
+          type: string
+          description: "ACTIVE 상태의 대기열 토큰"
+
+    PaymentResponse:
+      type: object
+      properties:
+        paymentId:
+          type: integer
+          format: int64
+          description: "결제 ID"
+        seatStatus:
+          type: string
+          description: "최종 좌석 상태"
+          enum: ["RESERVED"]
+        paidAmount:
+          type: integer
+          description: "결제된 금액"
+        userCurrentPoints:
+          type: integer
+          description: "결제 후 남은 포인트"
+
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: "에러 코드 문자열"
+        message:
+          type: string
+          description: "에러 메시지"

@@ -1,0 +1,211 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table users {
+
+  id         bigint         [pk, increment, note: 'userId, PK']
+  email      varchar(255)   [not null, note: '로그인 용 이메일']
+  password   varchar(255)   [not null, note: '암호화된 비밀번호']
+  name       varchar(100)   [null, note:'사용자 이름']
+  status     varchar(255)   [not null, default: 'ACTIVE', note: '계정 상태 (ACTIVE, DEACTIVE)']
+  createdAt  datetime       [not null]
+  updatedAt  datetime       [not null]
+
+   Indexes {
+      (email) [name: 'uk_users_email', unique]
+   }
+
+} // users
+
+
+Table concerts {
+
+  id          bigint        [pk, increment, note: 'concertId, PK']
+  title       varchar(255)  [not null, note: '콘서트 이름']
+  description text          [note: '콘서트 설명']
+  createdAt   datetime      [not null]
+  updatedAt   datetime      [not null]
+
+
+} // concerts
+
+
+Table concerts_schedules {
+
+  id            bigint    [pk, increment, note: 'scheduleId, PK']
+  concertId     bigint    [not null, note: 'FK → concerts.id']
+  startAt       datetime  [not null, note: '공연 시작 시각']
+  isReservable  boolean   [not null, default: true, note: '예약 가능 여부']
+  createdAt     datetime  [not null]
+  updatedAt     datetime  [not null]
+
+  Indexes {
+    (concertId) [name: 'idx_concerts_concertId']
+  }
+
+} // concerts_schedules
+
+Ref: concerts.id < concerts_schedules.concertId // concerts (1) - (N) concerts_schedules
+
+
+Table concerts_schedules_seats {
+  
+  id            bigint       [pk, increment, note: 'seatId, PK']
+  scheduleId    bigint       [not null, note: 'FK → concerts_schedules.id']
+  seatNumber    varchar(20)  [not null, note: '좌석 번호 (예 : 10)']
+  seatPrice     int          [not null, note: '좌석 가격']
+  seatStatus    seat_status  [not null, note: '좌석 상태']
+  createdAt     datetime     [not null]
+  updatedAt     datetime     [not null]
+
+  Indexes {
+    (scheduleId) [name: 'idx_concerts_schedules_scheduleId']
+    (scheduleId, seatNumber) [name: 'uk_concerts_schedules_seats_scheduleId_seatNumber', unique]
+  }
+
+} // concerts_schedules_seats
+
+Ref: concerts_schedules.id < concerts_schedules_seats.scheduleId // 한 스케줄에 여러 좌석
+
+
+Table queue_tokens {
+
+  id            bigint         [pk, increment]
+  token         varchar(100)   [not null, note: '대기열 토큰 문자열']
+  userId        bigint         [not null, note: 'FK → users.id']
+  scheduleId    bigint         [not null, note: 'FK → concerts_schedules.id']
+  tokenStatus   token_status   [not null, note: '토큰 상태']
+  position      int            [note: '현재 대기 순번']
+  waitingTime   int            [note: '예상 대기 시간 (초)']
+  activatedAt   datetime       [note: 'ACTIVE 된 시각']
+  expiredAt     datetime       [note: 'EXPIRED 된 시각']
+  createdAt     datetime       [not null]
+  updatedAt     datetime       [not null]
+
+  Indexes {
+    (token)                   [name: 'uk_queue_tokens_token', unique]
+    (userId, scheduleId)      [name: 'idx_users_concerts_schedules_userId_scheduleId']
+  }
+
+} // queue_tokens
+
+Ref: users.id              < queue_tokens.userId         // users (1) - (N) queue_tokens
+Ref: concerts_schedules.id < queue_tokens.scheduleId     // schedules (1) - (N) queue_tokens
+
+
+Table seats_reservations {
+
+  id                    bigint              [pk, increment, note: 'reservationId, PK']
+  userId                bigint              [not null, note: 'FK → users.id']
+  scheduleId            bigint              [not null, note: 'FK → concerts_schedules.id']
+  seatId                bigint              [not null, note: 'FK → concerts_schedules_seats.id']
+  reservationStatus     reservation_status  [not null, note: '현재 예약 상태']
+  reservationExpiresAt  datetime            [note: '임시 배정 만료 시각 (TEMPORARY일 때)']
+  createdAt             datetime            [not null]
+  updatedAt             datetime            [not null]
+  isActive              tinyint             [note: '좌석 임시 배정 (예약) 시 동시성 이슈 등을 처리하기 위함 (null, 1)']
+
+  Indexes {
+    (userId)                          [name: 'idx_users_userId']
+    (scheduleId)                      [name: 'idx_concerts_schedules_scheduleId']
+    (scheduleId, seatId, isActive)    [name: 'uk_seats_reservations_scheduleId_seatId_isActive', unique]
+  }
+
+} // seats_reservations
+
+Ref: users.id                   < seats_reservations.userId
+Ref: concerts_schedules.id      < seats_reservations.scheduleId
+Ref: concerts_schedules_seats.id < seats_reservations.seatId
+
+
+Table seats_reservations_histories {
+
+  id              bigint                [pk, increment]
+  reservationId   bigint                [not null, note: 'FK → seats_reservations.id']
+  status          reservation_status    [not null, note: '이 시점의 예약 상태']
+  expiresAt       datetime              [note: '이 시점 기준 만료 시각']
+  description     varchar(255)          [note: '상태 변경 사유/메모']
+  createdAt       datetime              [not null, note: '이력 생성 시각']
+
+  Indexes {
+    (reservationId) [name: 'idx_seats_reservations_reservationId']
+  }
+
+} // seats_reservations_histories
+
+Ref: seats_reservations.id < seats_reservations_histories.reservationId
+
+
+Table users_points {
+
+  userId      bigint    [pk, note: 'FK → users.id']
+  point       int       [not null, note: '현재 포인트 잔액']
+  updatedAt   datetime  [not null]
+
+} // users_points
+
+Ref: users.id < users_points.userId
+
+
+Table users_points_histories {
+
+  id              bigint             [pk, increment]
+  userId          bigint             [not null, note: 'FK → users.id']
+  type            point_history_type [not null, note: '포인트 이력 타입 (현재 CHARGE / USE 사용, REFUND는 향후 확장)']
+  amount          int                [not null, note: '증감량 (양수, type으로 의미 구분)']
+  afterPoint      int                [not null, note: '이 트랜잭션 이후 잔액']
+  name            varchar(255)       [note: '이력 이름 (예 : 카드 충전, 콘서트 결제)']
+  description     text               [note: '상세 내역']
+  paymentId       bigint             [note: 'FK → seats_payments.id (USE 시 연결)']
+  createdAt       datetime           [not null, note: '이력 생성 시각']
+
+  Indexes {
+    (userId)                    [name: 'idx_users_userId']
+    (paymentId)                 [name: 'idx_seats_payments_paymentId']
+  }
+
+} // Table users_points_histories
+
+
+Ref: users.id          < users_points_histories.userId
+Ref: seats_payments.id < users_points_histories.paymentId
+
+
+Table seats_payments {
+
+  id                bigint          [pk, increment, note: 'paymentId, PK']
+  reservationId     bigint          [not null, note: 'FK → seats_reservations.id']
+  userId            bigint          [not null, note: 'FK → users.id']
+  amount            int             [not null, note: '결제 금액']
+  status            payment_status  [not null, note: '현재 결제 상태']
+  paidAt            datetime        [note: 'SUCCESS 시 결제 완료 시각']
+  createdAt         datetime        [not null, note: '결제 요청 시각']
+  updatedAt         datetime        [not null, note: '마지막 상태 변경 시각']
+
+  Indexes {
+    (reservationId) [name: 'uk_seats_payments_reservationId', unique]
+    (userId)        [name: 'idx_users_userId']
+  }
+
+} // seats_payments
+
+Ref: seats_reservations.id  < seats_payments.reservationId
+Ref: users.id               < seats_payments.userId
+
+
+Table seats_payments_histories {
+
+  id                    bigint          [pk, increment]
+  paymentId             bigint          [not null, note: 'FK → seats_payments.id']
+  paymentStatus         payment_status  [not null, note: '이 시점의 결제 상태']
+  description           varchar(255)    [note: '실패/취소 사유 등']
+  createdAt             datetime        [not null, note: '이력 생성 시각']
+
+  Indexes {
+    (paymentId) [name: 'idx_seats_payments_paymentId']
+  }
+
+} // seats_payments_histories
+
+Ref: seats_payments.id < seats_payments_histories.paymentId
+
