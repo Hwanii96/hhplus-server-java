@@ -7,7 +7,7 @@ Table users {
   email      varchar(255)   [not null, note: '로그인 용 이메일']
   password   varchar(255)   [not null, note: '암호화된 비밀번호']
   name       varchar(100)   [null, note:'사용자 이름']
-  status     varchar(255)   [not null, default: 'ACTIVE', note: '계정 상태 (ACTIVE, DEACTIVE)']
+  status     varchar(255)   [not null, default: 'ACTIVE', note: '계정 상태 (ACTIVE, INACTIVE)']
   createdAt  datetime       [not null]
   updatedAt  datetime       [not null]
 
@@ -34,7 +34,7 @@ Table concerts_schedules {
 
   id            bigint    [pk, increment, note: 'scheduleId, PK']
   concertId     bigint    [not null, note: 'FK → concerts.id']
-  startAt       datetime  [not null, note: '공연 시작 시각']
+  dateTime      datetime  [not null, note: '공연 시작 시각']
   isReservable  boolean   [not null, default: true, note: '예약 가능 여부']
   createdAt     datetime  [not null]
   updatedAt     datetime  [not null]
