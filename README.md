@@ -3,13 +3,13 @@
 > 대기열 시스템 + 좌석 예약 (임시 배정) + 포인트 충전 방식으로 결제를 진행하는 콘서트 예약 서비스
 
 ## 📄 Document
-    - [API 초안 명세서](docs/3.api.md) 
-    - [API 명세서](docs/3.openapi.yaml)
-    - [ERD](docs/6.erd.md)
-    - [Infra 구성도](docs/7.infra.md)
+- [API 초안 명세서](docs/3.api.md) 
+- [API 명세서](docs/3.openapi.yaml)
+- [ERD](docs/6.erd.md)
+- [Infra 구성도](docs/7.infra.md)
 
 ## 🎯 목표 시나리오 
-    - [목표 시나리오 정리 파일](docs/1.서버구조설계-단계별_필요한_정보_정리.xlsx)
+- [목표 시나리오 정리 파일](docs/1.서버구조설계-단계별_필요한_정보_정리.xlsx)
 
 ## 🎯 목표 시나리오 예시
     - 대기열을 통과한 후 좌석 예약 및 결제를 통한 콘서트 예약
