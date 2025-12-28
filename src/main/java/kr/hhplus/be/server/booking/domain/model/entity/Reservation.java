@@ -15,7 +15,7 @@ public class Reservation {
     private final ReservationStatus reservationStatus;
     private final Instant reservationExpiresAt; // reservationStatus 값이 TEMPORARY 인 경우에만 해당
 
-    public Reservation(Long id, long userId, long scheduleId, long seatId, ReservationStatus reservationStatus, Instant reservationExpiresAt) {
+    private Reservation(Long id, long userId, long scheduleId, long seatId, ReservationStatus reservationStatus, Instant reservationExpiresAt) {
         this.id = id;
         this.userId = userId;
         this.scheduleId = scheduleId;
@@ -30,8 +30,9 @@ public class Reservation {
         }
     }
 
-    // 테스트를 위한 정적 팩토리 메서드 (static factory method)
-    public static Reservation temporary(long userId, long scheduleId, long seatId, Instant reservationExpiresAt) {
+    // 정적 팩토리 메서드 (static factory method)
+    // Reservation의 생성자가 public인 경우 객체의 정책에 어긋나게 만들어질 수 있으므로 클린 아키텍처에서는 생성자를 private로 놓고 정적 팩토리로 생성하는 방식으로 작성할 수 있다
+    public static Reservation temporaryReservation(long userId, long scheduleId, long seatId, Instant reservationExpiresAt) {
         return new Reservation(null, userId, scheduleId, seatId, ReservationStatus.TEMPORARY, reservationExpiresAt);
     }
 

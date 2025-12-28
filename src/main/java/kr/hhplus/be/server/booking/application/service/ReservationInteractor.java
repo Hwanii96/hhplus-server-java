@@ -65,7 +65,7 @@ public class ReservationInteractor {
             else {
                 // throw new UnsupportedOperationException("not implement code yet");
 
-                Reservation reservation = Reservation.temporary
+                Reservation reservation = Reservation.temporaryReservation
                         (
                                 reservationCommand.userId(),
                                 reservationCommand.scheduleId(),
