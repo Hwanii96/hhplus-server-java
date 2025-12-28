@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.booking.application.service;
 
 import kr.hhplus.be.server.booking.application.command.ReservationCommand;
+import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
 import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
 import kr.hhplus.be.server.booking.port.outbound.ReservationPort;
@@ -46,7 +47,37 @@ public class ReservationInteractor {
             throw new IllegalStateException("queueToken is not ACTIVE status");
         }
         else {
-            throw new UnsupportedOperationException("not implement code yet");
+            // throw new UnsupportedOperationException("not implement code yet");
+
+            Instant expiresAt = seatHoldPolicy.expiresAt(nowProvider.get());
+
+            boolean held = seatLockPort.hold
+                    (
+                            reservationCommand.userId(),
+                            reservationCommand.scheduleId(),
+                            reservationCommand.seatId(),
+                            expiresAt
+                    );
+
+            if(!held) {
+                throw new IllegalStateException("seat is already held");
+            }
+            else {
+                // throw new UnsupportedOperationException("not implement code yet");
+
+                Reservation reservation = Reservation.temporary
+                        (
+                                reservationCommand.userId(),
+                                reservationCommand.scheduleId(),
+                                reservationCommand.seatId(),
+                                expiresAt
+                        );
+
+                reservationPort.reserve(reservation);
+
+                throw new UnsupportedOperationException("not implement code yet");
+            }
+
         }
 
     } // reserve()

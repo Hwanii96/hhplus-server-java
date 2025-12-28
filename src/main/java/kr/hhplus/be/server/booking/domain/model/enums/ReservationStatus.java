@@ -1,4 +1,11 @@
 package kr.hhplus.be.server.booking.domain.model.enums;
 
-public class ReservationStatus {
+public enum ReservationStatus {
+
+    TEMPORARY,
+    RESERVED,
+    EXPIRED,
+    CANCELLED
+    ;
+
 }
