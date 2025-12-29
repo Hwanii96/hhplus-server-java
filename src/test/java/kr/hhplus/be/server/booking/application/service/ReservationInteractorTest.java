@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.booking.application.service;
 
 import kr.hhplus.be.server.booking.application.command.ReservationCommand;
+import kr.hhplus.be.server.booking.application.result.ReservationResult;
 import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
 import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
@@ -116,6 +117,7 @@ class ReservationInteractorTest {
     /**
      * 좌석 예약 시 대기열 토큰 상태를 조회해서 ACTIVE 상태인 경우 예약이 가능한 기본적인 조건을 충족하게 된다
      * 아래의 테스트 메서드는 좌석 예약 시 동시성 문제가 해결된 후 최종적으로 좌석 임시 배정이 가능한지를 테스트하기 위한 red 단위이다
+     * reserve() 의 return 값을 미구현한 단계까지를 기준으로 테스트 작성
      */
     @Test
     void seats_reservation_success_when_seatLock_hold_is_succeed() {
@@ -139,6 +141,45 @@ class ReservationInteractorTest {
         // any : Mockito의 Argument Matcher이며, 인자의 내용을 검증하지 않고 테스트를 수행하려고 할 때 (호출 여부만 빠르게 검증) 사용할 수 있으며, any() 인자로 타입을 명시하면 더 안전하다
         verify(reservationPort).reserve(any(Reservation.class));
 
+    }
+
+    /**
+     * 좌석 예약 시 대기열 토큰 상태를 조회해서 ACTIVE 상태인 경우 예약이 가능한 기본적인 조건을 충족하게 된다
+     * 아래의 테스트 메서드는 좌석 예약 시 동시성 문제가 해결된 후 최종적으로 좌석 임시 배정이 가능한지를 테스트하기 위한 red 단위이다
+     * reserve() 의 return 값을 구현한 단계까지를 기준으로 해서 최종적으로 마무리하기 위한 테스트
+     */
+    @Test
+    void seats_reservation_success_returns_results_when_seatLock_hold_is_succeed() {
+
+        // given
+        String token = "testToken";
+        long userId = 4L;
+        long scheduleId = 40L;
+        long seatId = 400L;
+        Instant expiresAt = seatHoldPolicy.expiresAt(now);
+
+        when(queueTokenPort.isActive(token, userId, scheduleId)).thenReturn(true);
+        when(seatLockPort.hold(userId, scheduleId, seatId, expiresAt)).thenReturn(true);
+
+        // temporaryReservation() 규칙 상 내부에서 id 값은 null로 생성되도록 했다
+        Reservation temporaryReservation = Reservation.temporaryReservation(userId, scheduleId, seatId, expiresAt);
+
+        // 따라서 테스트를 위해 id 값을 DB에서 받았다고 가정해야 하므로 불변 필드를 withId() 메서드로 변경하도록 한다
+        Reservation temporaryReservationWithId = temporaryReservation.withId(1L);
+
+        when(reservationPort.reserve(any(Reservation.class))).thenReturn(temporaryReservationWithId);
+
+        ReservationCommand reservationCommand = new ReservationCommand(token, userId, scheduleId, seatId);
+
+        // when
+        ReservationResult reservationResult = reservationInteractor.reserve(reservationCommand);
+
+        // then
+        assertEquals(1L, reservationResult.reservationId());
+        assertEquals(expiresAt, reservationResult.reservationExpiresAt());
+
+        verify(reservationPort).reserve(any(Reservation.class));
+        
     }
     
 

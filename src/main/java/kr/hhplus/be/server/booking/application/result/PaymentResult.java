@@ -1,4 +1,8 @@
 package kr.hhplus.be.server.booking.application.result;
 
-public class PaymentResult {
+public record PaymentResult
+        (
+
+        )
+{
 }

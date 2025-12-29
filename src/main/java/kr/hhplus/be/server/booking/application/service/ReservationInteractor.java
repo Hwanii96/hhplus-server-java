@@ -1,6 +1,7 @@
 package kr.hhplus.be.server.booking.application.service;
 
 import kr.hhplus.be.server.booking.application.command.ReservationCommand;
+import kr.hhplus.be.server.booking.application.result.ReservationResult;
 import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
 import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
@@ -34,7 +35,7 @@ public class ReservationInteractor {
         this.nowProvider = nowProvider;
     }
 
-    public void reserve(ReservationCommand reservationCommand) {
+    public ReservationResult reserve(ReservationCommand reservationCommand) {
 
         boolean isActive = queueTokenPort.isActive
                 (
@@ -46,39 +47,44 @@ public class ReservationInteractor {
         if(!isActive) {
             throw new IllegalStateException("queueToken is not ACTIVE status");
         }
-        else {
-            // throw new UnsupportedOperationException("not implement code yet");
 
-            Instant expiresAt = seatHoldPolicy.expiresAt(nowProvider.get());
+        // throw new UnsupportedOperationException("not implement code yet");
 
-            boolean held = seatLockPort.hold
-                    (
-                            reservationCommand.userId(),
-                            reservationCommand.scheduleId(),
-                            reservationCommand.seatId(),
-                            expiresAt
-                    );
+        Instant expiresAt = seatHoldPolicy.expiresAt(nowProvider.get());
 
-            if(!held) {
-                throw new IllegalStateException("seat is already held");
-            }
-            else {
-                // throw new UnsupportedOperationException("not implement code yet");
+        boolean held = seatLockPort.hold
+                (
+                        reservationCommand.userId(),
+                        reservationCommand.scheduleId(),
+                        reservationCommand.seatId(),
+                        expiresAt
+                );
 
-                Reservation reservation = Reservation.temporaryReservation
-                        (
-                                reservationCommand.userId(),
-                                reservationCommand.scheduleId(),
-                                reservationCommand.seatId(),
-                                expiresAt
-                        );
-
-                reservationPort.reserve(reservation);
-
-                throw new UnsupportedOperationException("not implement code yet");
-            }
-
+        if(!held) {
+            throw new IllegalStateException("seat is already held");
         }
+
+        // throw new UnsupportedOperationException("not implement code yet");
+
+        Reservation temporaryReservation = Reservation.temporaryReservation
+                (
+                        reservationCommand.userId(),
+                        reservationCommand.scheduleId(),
+                        reservationCommand.seatId(),
+                        expiresAt
+                );
+
+        Reservation reservation = reservationPort.reserve(temporaryReservation);
+
+        Long id = reservation.getId();
+
+        if(id == null) {
+            throw new IllegalStateException("reservation id is must not be null");
+        }
+
+        return new ReservationResult(id, reservation.getReservationExpiresAt());
+
+        // throw new UnsupportedOperationException("not implement code yet");
 
     } // reserve()
 

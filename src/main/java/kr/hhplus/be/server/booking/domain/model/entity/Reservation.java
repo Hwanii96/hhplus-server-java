@@ -36,6 +36,11 @@ public class Reservation {
         return new Reservation(null, userId, scheduleId, seatId, ReservationStatus.TEMPORARY, reservationExpiresAt);
     }
 
+    // Port 호출 결과로 id 값을 포함하여 새로운 Reservation이 반환될 때 id는 불변 필드 이므로 이 부분을 해결하기 위한 메서드로, 새로운 Reservation 객체를 생성하도록 하는 패턴이다
+    public Reservation withId(Long id) {
+        return new Reservation(id, this.userId, this.scheduleId, this.seatId, this.reservationStatus, this.reservationExpiresAt);
+    }
+
     public Long getId() {
         return id;
     }
