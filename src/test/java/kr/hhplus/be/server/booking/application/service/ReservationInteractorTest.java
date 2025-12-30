@@ -6,6 +6,7 @@ import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
 import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
 import kr.hhplus.be.server.booking.port.outbound.ReservationPort;
+import kr.hhplus.be.server.booking.port.outbound.SeatAvailabilityPort;
 import kr.hhplus.be.server.booking.port.outbound.SeatLockPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ class ReservationInteractorTest {
     ReservationPort reservationPort; // 예 : DB
     @Mock
     SeatLockPort seatLockPort; // 예 : Redis
+    @Mock
+    SeatAvailabilityPort seatAvailabilityPort; // 예 : DB
 
     private ReservationInteractor reservationInteractor;
 
@@ -50,6 +53,7 @@ class ReservationInteractorTest {
         reservationInteractor = new ReservationInteractor
                 (
                 queueTokenPort,
+                seatAvailabilityPort,
                 seatLockPort,
                 reservationPort,
                 seatHoldPolicy,
@@ -164,7 +168,7 @@ class ReservationInteractorTest {
         // temporaryReservation() 규칙 상 내부에서 id 값은 null로 생성되도록 했다
         Reservation temporaryReservation = Reservation.temporaryReservation(userId, scheduleId, seatId, expiresAt);
 
-        // 따라서 테스트를 위해 id 값을 DB에서 받았다고 가정해야 하므로 불변 필드를 withId() 메서드로 변경하도록 한다
+        // 따라서 테스트를 위해 id 값을 DB에서 받았다고 가정해야 하므로 불변 필드를 withId() 메서드로 변경 (새롭게 Reservation 객체 생성) 하도록 한다
         Reservation temporaryReservationWithId = temporaryReservation.withId(1L);
 
         when(reservationPort.reserve(any(Reservation.class))).thenReturn(temporaryReservationWithId);
@@ -181,8 +185,38 @@ class ReservationInteractorTest {
         verify(reservationPort).reserve(any(Reservation.class));
         
     }
-    
 
+    /**
+     * 좌석 예약 (임시 배정) 시 seatId 값을 통해 조회해서 해당 좌석의 상태 값이 이미 RESERVED인 경우에는 예약이 불가능한지를 검증하기 위한 red 단위
+     *
+     */
+    @Test
+    void seats_reservation_fails_when_seat_is_not_available() {
+
+        // given
+        String token = "testToken";
+        long userId = 5L;
+        long scheduleId = 50L;
+        long seatId = 500L;
+        Instant expiresAt = seatHoldPolicy.expiresAt(now);
+
+        when(queueTokenPort.isActive(token, userId, scheduleId)).thenReturn(true);
+        when(seatAvailabilityPort.isAvailable(scheduleId, seatId)).thenReturn(false);
+
+        ReservationCommand reservationCommand = new ReservationCommand(token, userId, scheduleId, seatId);
+
+        // when
+        assertThrows(IllegalStateException.class, () -> reservationInteractor.reserve(reservationCommand));
+
+        // then : isAvailable() 호출은 했어야 한다
+        verify(seatAvailabilityPort).isAvailable(scheduleId, seatId);
+
+        // then : isAvailable() 결과로 좌석 예약 (임시 배정) 이 불가능한 경우 아래의 Port 들은 호출되면 안된다
+        verifyNoInteractions(seatLockPort);
+        verifyNoInteractions(reservationPort);
+
+    }
+    
     /*
       [ 임시 메모 ]
       좌석 예약 시 대기열 통과한 후 특정 좌석을 임시 배정 받고 포인트로 결제하여 예매를 완료하는 시나리오를 테스트하기 위한 메서드

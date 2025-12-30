@@ -4,16 +4,19 @@ import kr.hhplus.be.server.booking.application.command.ReservationCommand;
 import kr.hhplus.be.server.booking.application.result.ReservationResult;
 import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
 import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
+import kr.hhplus.be.server.booking.port.inbound.ReservationUseCase;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
 import kr.hhplus.be.server.booking.port.outbound.ReservationPort;
+import kr.hhplus.be.server.booking.port.outbound.SeatAvailabilityPort;
 import kr.hhplus.be.server.booking.port.outbound.SeatLockPort;
 
 import java.time.Instant;
 import java.util.function.Supplier;
 
-public class ReservationInteractor {
+public class ReservationInteractor implements ReservationUseCase {
 
     private final QueueTokenPort queueTokenPort;
+    private final SeatAvailabilityPort seatAvailabilityPort;
     private final SeatLockPort seatLockPort;
     private final ReservationPort reservationPort;
     private final SeatHoldPolicy seatHoldPolicy;
@@ -22,6 +25,7 @@ public class ReservationInteractor {
     public ReservationInteractor
             (
                     QueueTokenPort queueTokenPort,
+                    SeatAvailabilityPort seatAvailabilityPort,
                     SeatLockPort seatLockPort,
                     ReservationPort reservationPort,
                     SeatHoldPolicy seatHoldPolicy,
@@ -29,6 +33,7 @@ public class ReservationInteractor {
             )
     {
         this.queueTokenPort = queueTokenPort;
+        this.seatAvailabilityPort = seatAvailabilityPort;
         this.seatLockPort = seatLockPort;
         this.reservationPort = reservationPort;
         this.seatHoldPolicy = seatHoldPolicy;
@@ -49,6 +54,16 @@ public class ReservationInteractor {
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
+
+        boolean available = seatAvailabilityPort.isAvailable
+                (
+                        reservationCommand.scheduleId(),
+                        reservationCommand.seatId()
+                );
+
+        if(!available) {
+            throw new IllegalStateException("this seat is no available");
+        }
 
         Instant expiresAt = seatHoldPolicy.expiresAt(nowProvider.get());
 
@@ -82,7 +97,8 @@ public class ReservationInteractor {
             throw new IllegalStateException("reservation id is must not be null");
         }
 
-        return new ReservationResult(id, reservation.getReservationExpiresAt());
+        // expiresAt : DB에서 가져온 expiresAt를 사용하면 정합성이 깨질 수 있으며, 만료 시각 정책은 Interactor가 주체이므로, reservation.getReservationExpiresAt() 로 사용하지 않는다
+        return new ReservationResult(id, expiresAt);
 
         // throw new UnsupportedOperationException("not implement code yet");
 
