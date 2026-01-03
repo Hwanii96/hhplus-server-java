@@ -35,6 +35,11 @@ public class Reservation {
     public static Reservation temporaryReservation(long userId, long scheduleId, long seatId, Instant reservationExpiresAt) {
         return new Reservation(null, userId, scheduleId, seatId, ReservationStatus.TEMPORARY, reservationExpiresAt);
     }
+    
+    // 상태 값이 "RESERVED" 로 하여 예약 객체를 생성하기 위함 (예 : 결제 시 "TEMPORARY" 상태가 아닐 때 결제 실패 테스트를 위함)
+    public static Reservation reservedReservation(Long id, long userId, long scheduleId, long seatId) {
+        return new Reservation(id, userId, scheduleId, seatId, ReservationStatus.RESERVED, null);
+    }
 
     // Port 호출 결과로 id 값을 포함하여 새로운 Reservation이 반환될 때 id는 불변 필드 이므로 이 부분을 해결하기 위한 메서드로, 새로운 Reservation 객체를 생성하도록 하는 패턴이다
     public Reservation withId(Long id) {

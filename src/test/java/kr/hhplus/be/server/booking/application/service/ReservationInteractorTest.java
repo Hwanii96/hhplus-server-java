@@ -6,7 +6,7 @@ import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
 import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
 import kr.hhplus.be.server.booking.port.outbound.ReservationPort;
-import kr.hhplus.be.server.booking.port.outbound.SeatAvailabilityPort;
+import kr.hhplus.be.server.booking.port.outbound.SeatPort;
 import kr.hhplus.be.server.booking.port.outbound.SeatLockPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,7 @@ class ReservationInteractorTest {
     @Mock
     SeatLockPort seatLockPort; // 예 : Redis
     @Mock
-    SeatAvailabilityPort seatAvailabilityPort; // 예 : DB
+    SeatPort seatPort; // 예 : DB
 
     private ReservationInteractor reservationInteractor;
 
@@ -53,7 +53,7 @@ class ReservationInteractorTest {
         reservationInteractor = new ReservationInteractor
                 (
                 queueTokenPort,
-                seatAvailabilityPort,
+                        seatPort,
                 seatLockPort,
                 reservationPort,
                 seatHoldPolicy,
@@ -201,7 +201,7 @@ class ReservationInteractorTest {
         Instant expiresAt = seatHoldPolicy.expiresAt(now);
 
         when(queueTokenPort.isActive(token, userId, scheduleId)).thenReturn(true);
-        when(seatAvailabilityPort.isAvailable(scheduleId, seatId)).thenReturn(false);
+        when(seatPort.isAvailable(scheduleId, seatId)).thenReturn(false);
 
         ReservationCommand reservationCommand = new ReservationCommand(token, userId, scheduleId, seatId);
 
@@ -209,7 +209,7 @@ class ReservationInteractorTest {
         assertThrows(IllegalStateException.class, () -> reservationInteractor.reserve(reservationCommand));
 
         // then : isAvailable() 호출은 했어야 한다
-        verify(seatAvailabilityPort).isAvailable(scheduleId, seatId);
+        verify(seatPort).isAvailable(scheduleId, seatId);
 
         // then : isAvailable() 결과로 좌석 예약 (임시 배정) 이 불가능한 경우 아래의 Port 들은 호출되면 안된다
         verifyNoInteractions(seatLockPort);

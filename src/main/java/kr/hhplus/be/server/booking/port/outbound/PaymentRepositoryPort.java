@@ -1,5 +1,7 @@
 package kr.hhplus.be.server.booking.port.outbound;
 
+import kr.hhplus.be.server.booking.domain.model.entity.Payment;
+
 /**
  * Outbound Port : 결제 정보 저장 및 조회
  * Method Parameter 및 Return Type : Payment Domain
@@ -7,5 +9,7 @@ package kr.hhplus.be.server.booking.port.outbound;
  * 실제 구현은 Adapter (예 : JPA 기반 PersistenceAdapter) 에서 제공되도록 한다
  */
 public interface PaymentRepositoryPort {
+
+    Payment pay(Payment payment);
 
 }

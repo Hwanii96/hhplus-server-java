@@ -7,7 +7,7 @@ import kr.hhplus.be.server.booking.domain.policy.SeatHoldPolicy;
 import kr.hhplus.be.server.booking.port.inbound.ReservationUseCase;
 import kr.hhplus.be.server.booking.port.outbound.QueueTokenPort;
 import kr.hhplus.be.server.booking.port.outbound.ReservationPort;
-import kr.hhplus.be.server.booking.port.outbound.SeatAvailabilityPort;
+import kr.hhplus.be.server.booking.port.outbound.SeatPort;
 import kr.hhplus.be.server.booking.port.outbound.SeatLockPort;
 
 import java.time.Instant;
@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 public class ReservationInteractor implements ReservationUseCase {
 
     private final QueueTokenPort queueTokenPort;
-    private final SeatAvailabilityPort seatAvailabilityPort;
+    private final SeatPort seatPort;
     private final SeatLockPort seatLockPort;
     private final ReservationPort reservationPort;
     private final SeatHoldPolicy seatHoldPolicy;
@@ -25,7 +25,7 @@ public class ReservationInteractor implements ReservationUseCase {
     public ReservationInteractor
             (
                     QueueTokenPort queueTokenPort,
-                    SeatAvailabilityPort seatAvailabilityPort,
+                    SeatPort seatPort,
                     SeatLockPort seatLockPort,
                     ReservationPort reservationPort,
                     SeatHoldPolicy seatHoldPolicy,
@@ -33,7 +33,7 @@ public class ReservationInteractor implements ReservationUseCase {
             )
     {
         this.queueTokenPort = queueTokenPort;
-        this.seatAvailabilityPort = seatAvailabilityPort;
+        this.seatPort = seatPort;
         this.seatLockPort = seatLockPort;
         this.reservationPort = reservationPort;
         this.seatHoldPolicy = seatHoldPolicy;
@@ -55,7 +55,7 @@ public class ReservationInteractor implements ReservationUseCase {
 
         // throw new UnsupportedOperationException("not implement code yet");
 
-        boolean available = seatAvailabilityPort.isAvailable
+        boolean available = seatPort.isAvailable
                 (
                         reservationCommand.scheduleId(),
                         reservationCommand.seatId()
