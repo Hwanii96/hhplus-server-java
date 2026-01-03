@@ -53,7 +53,7 @@ class ReservationInteractorTest {
         reservationInteractor = new ReservationInteractor
                 (
                 queueTokenPort,
-                        seatPort,
+                seatPort,
                 seatLockPort,
                 reservationPort,
                 seatHoldPolicy,
