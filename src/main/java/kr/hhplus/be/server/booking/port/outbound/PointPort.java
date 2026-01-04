@@ -7,6 +7,6 @@ public interface PointPort {
 
     Point searchUserPoint(long userId);
 
-    Point deduct(long userId, long amount); // 포인트 사용 후 사용자의 포인트 잔액 정보를 포함한 Point 객체 반환
+    Point deduct(long userId, long point); // 포인트 사용 후 사용자의 포인트 잔액 정보를 포함한 Point 객체 반환
 
 }

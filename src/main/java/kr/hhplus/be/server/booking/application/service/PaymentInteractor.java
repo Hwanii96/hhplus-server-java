@@ -2,7 +2,11 @@ package kr.hhplus.be.server.booking.application.service;
 
 import kr.hhplus.be.server.booking.application.command.PaymentCommand;
 import kr.hhplus.be.server.booking.application.result.PaymentResult;
+import kr.hhplus.be.server.booking.domain.model.entity.Payment;
+import kr.hhplus.be.server.booking.domain.model.entity.Point;
 import kr.hhplus.be.server.booking.domain.model.entity.Reservation;
+import kr.hhplus.be.server.booking.domain.model.enums.ReservationStatus;
+import kr.hhplus.be.server.booking.domain.model.enums.SeatStatus;
 import kr.hhplus.be.server.booking.port.inbound.PaymentUseCase;
 import kr.hhplus.be.server.booking.port.outbound.*;
 
@@ -48,6 +52,8 @@ public class PaymentInteractor implements PaymentUseCase {
         // throw new UnsupportedOperationException("not implement code yet");
 
         long scheduleId = reservation.getScheduleId();
+        long seatId = reservation.getSeatId();
+        long reservationId = reservation.getId();
 
         boolean isActive = queueTokenPort.isActive(paymentCommand.queueToken(), paymentCommand.userId(), scheduleId);
 
@@ -55,7 +61,60 @@ public class PaymentInteractor implements PaymentUseCase {
             throw new IllegalStateException("queueToken is not ACTIVE status");
         }
 
-        throw new UnsupportedOperationException("not implement code yet");
+        // throw new UnsupportedOperationException("not implement code yet");
+
+        if(reservation.getUserId() != paymentCommand.userId()) {
+            throw new IllegalStateException("reservation owner is not match");
+        }
+
+        // throw new UnsupportedOperationException("not implement code yet");
+
+        if(reservation.getReservationStatus() != ReservationStatus.TEMPORARY) {
+            throw new IllegalStateException("reservation status is not TEMPORARY");
+        }
+
+        // throw new UnsupportedOperationException("not implement code yet");
+
+        Instant now = nowProvider.get();
+        Instant expiresAt = reservation.getReservationExpiresAt();
+
+        if(expiresAt.isBefore(now)) {
+            throw new IllegalStateException("reservation is already expired");
+        }
+
+        // throw new UnsupportedOperationException("not implement code yet");
+
+        long seatPrice = seatPort.searchSeatPrice(scheduleId, reservation.getSeatId());
+
+        Point userPoint = pointPort.searchUserPoint(paymentCommand.userId());
+
+        if(userPoint == null) {
+            throw new IllegalStateException("user point not found");
+        }
+
+        long userCurrentPoint = userPoint.getPoint();
+
+        if(userCurrentPoint < seatPrice) {
+            throw new IllegalStateException("userPoint is not sufficient");
+        }
+
+        // throw new UnsupportedOperationException("not implement code yet");
+
+        Point afterUserPoint = pointPort.deduct(paymentCommand.userId(), seatPrice);
+
+        Payment payment = Payment.payment(reservationId, paymentCommand.userId(), seatPrice, now);
+
+        Payment result = paymentRepositoryPort.pay(payment);
+
+        if(result.getId() == null) {
+            throw new IllegalStateException("payment id must not be null");
+        }
+
+        reservationPort.updateReservationStatus(reservationId, ReservationStatus.RESERVED);
+        seatPort.updateSeatStatus(scheduleId, seatId, SeatStatus.RESERVED);
+        queueTokenPort.expire(paymentCommand.queueToken());
+
+        return new PaymentResult(result.getId(), seatPrice, afterUserPoint.getPoint(), now);
 
     } // pay()
 
