@@ -1,4 +1,8 @@
 package kr.hhplus.be.server.point.controller.dto;
 
-public class PointResponse {
+public record PointResponse
+        (
+                long userCurrentPoints
+        )
+{
 }

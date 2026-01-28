@@ -10,6 +10,10 @@ public class Point {
         this.point = point;
     }
 
+    public static Point fromEntity(long userId, long point) {
+        return new Point(userId, point);
+    }
+
     public long getUserId() {
         return userId;
     }
@@ -17,4 +21,5 @@ public class Point {
     public long getPoint() {
         return point;
     }
+
 }

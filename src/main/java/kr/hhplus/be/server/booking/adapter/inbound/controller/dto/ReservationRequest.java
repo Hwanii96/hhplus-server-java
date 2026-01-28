@@ -1,4 +1,12 @@
 package kr.hhplus.be.server.booking.adapter.inbound.controller.dto;
 
-public class ReservationRequest {
+public record ReservationRequest
+        (
+                long concertId,
+                long scheduleId,
+                long seatId,
+                String queueToken
+        )
+{
+
 }

@@ -1,6 +1,8 @@
 package kr.hhplus.be.server.booking.application.service;
 
 import kr.hhplus.be.server.booking.application.command.PaymentCommand;
+import kr.hhplus.be.server.booking.application.exception.payment.*;
+import kr.hhplus.be.server.booking.application.exception.reservation.QueueTokenInactiveException;
 import kr.hhplus.be.server.booking.application.result.PaymentResult;
 import kr.hhplus.be.server.booking.domain.model.entity.Payment;
 import kr.hhplus.be.server.booking.domain.model.entity.Point;
@@ -46,7 +48,8 @@ public class PaymentInteractor implements PaymentUseCase {
         Reservation reservation = reservationPort.searchByReservationId(paymentCommand.reservationId());
 
         if(reservation == null) {
-            throw new IllegalStateException("the reservation is not available");
+            throw new ReservationNotFoundException("reservation not found");
+            // throw new IllegalStateException("the reservation is not available");
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
@@ -58,19 +61,22 @@ public class PaymentInteractor implements PaymentUseCase {
         boolean isActive = queueTokenPort.isActive(paymentCommand.queueToken(), paymentCommand.userId(), scheduleId);
 
         if (!isActive) {
-            throw new IllegalStateException("queueToken is not ACTIVE status");
+            throw new QueueTokenInactiveException("queueToken is not ACTIVE status"); // exception.reservation에 있는 예외 클래스를 사용함
+            // throw new IllegalStateException("queueToken is not ACTIVE status");
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
 
         if(reservation.getUserId() != paymentCommand.userId()) {
-            throw new IllegalStateException("reservation owner is not match");
+            throw new ReservationOwnerMismatchException("reservation owner is not match");
+            // throw new IllegalStateException("reservation owner is not match");
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
 
         if(reservation.getReservationStatus() != ReservationStatus.TEMPORARY) {
-            throw new IllegalStateException("reservation status is not TEMPORARY");
+            throw new ReservationStatusNotTemporaryException("reservation status is not TEMPORARY");
+            // throw new IllegalStateException("reservation status is not TEMPORARY");
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
@@ -79,23 +85,33 @@ public class PaymentInteractor implements PaymentUseCase {
         Instant expiresAt = reservation.getReservationExpiresAt();
 
         if(expiresAt.isBefore(now)) {
-            throw new IllegalStateException("reservation is already expired");
+            throw new ReservationExpiredException("reservation is already expired");
+            // throw new IllegalStateException("reservation is already expired");
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
+
+        SeatStatus currentSeatStatus = seatPort.searchSeatStatus(scheduleId, seatId);
+
+        if (currentSeatStatus == SeatStatus.RESERVED) {
+            throw new ReservationStatusNotTemporaryException("seat is already RESERVED");
+        }
+
 
         long seatPrice = seatPort.searchSeatPrice(scheduleId, reservation.getSeatId());
 
         Point userPoint = pointPort.searchUserPoint(paymentCommand.userId());
 
         if(userPoint == null) {
-            throw new IllegalStateException("user point not found");
+            throw new PointNotFoundException("user point not found");
+            // throw new IllegalStateException("user point not found");
         }
 
         long userCurrentPoint = userPoint.getPoint();
 
         if(userCurrentPoint < seatPrice) {
-            throw new IllegalStateException("userPoint is not sufficient");
+            throw new InsufficientPointException("userPoint is not sufficient");
+            // throw new IllegalStateException("userPoint is not sufficient");
         }
 
         // throw new UnsupportedOperationException("not implement code yet");
@@ -114,7 +130,14 @@ public class PaymentInteractor implements PaymentUseCase {
         seatPort.updateSeatStatus(scheduleId, seatId, SeatStatus.RESERVED);
         queueTokenPort.expire(paymentCommand.queueToken());
 
-        return new PaymentResult(result.getId(), seatPrice, afterUserPoint.getPoint(), now);
+        return new PaymentResult
+                (
+                        result.getId(),
+                        SeatStatus.RESERVED,
+                        seatPrice,
+                        afterUserPoint.getPoint(),
+                        now
+                );
 
     } // pay()
 

@@ -46,6 +46,11 @@ public class Reservation {
         return new Reservation(id, this.userId, this.scheduleId, this.seatId, this.reservationStatus, this.reservationExpiresAt);
     }
 
+    // fromEntity
+    public static Reservation fromEntity(Long id, long userId, long scheduleId, long seatId, ReservationStatus reservationStatus, Instant reservationExpiresAt) {
+        return new Reservation(id, userId, scheduleId, seatId, reservationStatus, reservationExpiresAt);
+    }
+
     public Long getId() {
         return id;
     }

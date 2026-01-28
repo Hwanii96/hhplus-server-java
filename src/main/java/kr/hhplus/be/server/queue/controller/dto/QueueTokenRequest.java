@@ -1,4 +1,8 @@
 package kr.hhplus.be.server.queue.controller.dto;
 
-public class QueueTokenRequest {
+public record QueueTokenRequest
+        (
+
+        )
+{
 }
